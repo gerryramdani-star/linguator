@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Translator - Glass Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Noto+Naskh+Arabic:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            /* Background Modern Dark Gradient */
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+            background-attachment: fixed;
+            color: white;
+        }
+        
+        /* Glassmorphism Utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-header {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* CUSTOM DROPDOWN STYLES */
+        .custom-select {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .select-selected {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 99px; /* Pill shape */
+            transition: background 0.2s;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .select-selected:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .select-items {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: #1e1b4b; /* Solid dark background for readability */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-top: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: none; /* Hidden by default */
+            width: 140px; /* Lebar dropdown list */
+        }
+
+        .select-items.show {
+            display: block;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .select-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .select-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .select-item img, .select-selected img {
+            width: 20px;
+            height: 15px;
+            object-fit: cover;
+            border-radius: 2px;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+        
+        /* Font Classes */
+        .font-arabic { font-family: 'Noto Naskh Arabic', serif; line-height: 1.8; }
+        .font-jp { font-family: 'Noto Sans JP', sans-serif; }
+        .font-kr { font-family: 'Noto Sans KR', sans-serif; }
+        .font-sc { font-family: 'Noto Sans SC', sans-serif; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animation */
+        @keyframes pulse-neon {
+            0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(139, 92, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+        }
+        .recording-active { 
+            animation: pulse-neon 1.5s infinite; 
+            background: linear-gradient(to right, #ef4444, #f87171) !important;
+        }
+        
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; opacity: 0; transform: translateY(10px); }
+        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center p-0 md:p-4 overflow-hidden">
+
+    <!-- MAIN CARD CONTAINER -->
+    <div class="w-full h-full md:h-[90vh] md:max-w-md flex flex-col glass md:rounded-3xl overflow-hidden shadow-2xl relative">
+
+        <!-- HEADER -->
+        <div class="glass-header p-4 flex items-center justify-between z-20">
+            <button onclick="toggleSettings()" class="text-white/70 hover:text-white p-2 transition hover:bg-white/10 rounded-full" title="Pengaturan API">
+                <i class="fas fa-cog text-lg"></i>
+            </button>
+            
+            <div class="flex flex-col items-center">
+                <!-- JUDUL BARU: LinguaTor -->
+                <h1 class="text-2xl tracking-wide font-bold drop-shadow-md">
+                    <span class="text-white">Lingua</span><span class="text-blue-400">Tor</span>
+                </h1>
+                <p class="text-[10px] text-blue-200/70" id="api-indicator">Mode: Publik (Gratis)</p>
+            </div>
+
+            <!-- Tombol Sampah dengan fungsi baru: askClearChat() -->
+            <button onclick="askClearChat()" class="text-white/70 hover:text-red-400 p-2 transition hover:bg-white/10 rounded-full" title="Hapus Chat">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+
+        <!-- SETTING BAHASA (CUSTOM DROPDOWN) -->
+        <div class="z-30 px-4 py-2">
+            <div class="glass rounded-xl p-1 flex justify-between items-center px-3">
+                
+                <!-- Source Language Custom Dropdown -->
+                <div class="custom-select" id="source-select">
+                    <!-- Value tersembunyi untuk JS -->
+                    <input type="hidden" id="sourceLang" value="id-ID">
+                    <!-- Tampilan Terpilih -->
+                    <div class="select-selected" onclick="toggleDropdown('source-list')">
+                        <img src="https://flagcdn.com/w40/id.png" alt="ID">
+                        <span>Indonesia</span>
+                        <i class="fas fa-chevron-down text-[10px] ml-1 opacity-50"></i>
+                    </div>
+                    <!-- Daftar Pilihan -->
+                    <div class="select-items" id="source-list">
+                        <!-- Diisi via JS -->
+                    </div>
+                </div>
+                
+                <button onclick="swapLanguages()" class="text-blue-300 hover:text-white transition mx-1 p-2 rounded-full hover:bg-white/10 shrink-0">
+                    <i class="fas fa-exchange-alt text-xs"></i>
+                </button>
+                
+                <!-- Target Language Custom Dropdown -->
+                <div class="custom-select" id="target-select">
+                    <input type="hidden" id="targetLang" value="en-US">
+                    <div class="select-selected" onclick="toggleDropdown('target-list')">
+                        <img src="https://flagcdn.com/w40/us.png" alt="US">
+                        <span>Inggris</span>
+                        <i class="fas fa-chevron-down text-[10px] ml-1 opacity-50"></i>
+                    </div>
+                    <div class="select-items" id="target-list">
+                         <!-- Diisi via JS -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- AREA CHAT -->
+        <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 relative scroll-smooth no-scrollbar z-0">
+            <!-- Pesan Pembuka -->
+            <div class="text-center mt-4">
+                <div class="inline-block glass rounded-full px-4 py-1.5">
+                    <p class="text-[10px] text-white/50 flex items-center gap-1">
+                        <i class="fas fa-shield-alt"></i> Privasi terjaga & tersimpan lokal
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER / INPUT -->
+        <div class="glass-header p-4 z-20">
+            <div class="flex items-center gap-3">
+                
+                <!-- Input Field -->
+                <div class="flex-1 relative">
+                    <input type="text" id="text-input" placeholder="Ketik pesan..." 
+                        class="glass-input w-full pl-4 pr-10 py-3 rounded-2xl focus:outline-none focus:border-blue-400/50 transition text-sm placeholder-white/30"
+                        onkeypress="handleEnter(event)">
+                    <button onclick="processText()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 hover:bg-blue-500 hover:text-white text-white/70 flex items-center justify-center transition">
+                        <i class="fas fa-paper-plane text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Tombol Rekam -->
+                <button id="btn-record" onclick="toggleRecording()" 
+                    class="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 shadow-lg shadow-blue-900/50 text-white flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 border border-white/20">
+                    <i class="fas fa-microphone text-lg" id="icon-record"></i>
+                </button>
+            </div>
+
+            <!-- Credits Footer -->
+            <div class="text-center mt-3">
+                <p class="text-[10px] text-white/30 font-light tracking-wider hover:text-white/50 transition cursor-default">
+                    (2025) Crafted with <span class="text-red-400">❤️</span> by Om Ger | Ai-Labs
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SETTINGS (Glass Style) -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-0 invisible">
+        <div class="bg-[#1e1b4b] border border-white/10 rounded-2xl w-full max-w-xs p-6 shadow-2xl transform scale-95 transition-transform duration-300" id="settings-modal-content">
+            <h2 class="text-lg font-bold text-white mb-1">Pengaturan API</h2>
+            <p class="text-xs text-blue-200/60 mb-6">Tingkatkan kecerdasan dengan AI Google.</p>
+            
+            <div class="mb-6">
+                <label class="block text-xs font-semibold text-blue-300 mb-2">Google Gemini API Key</label>
+                <div class="relative">
+                    <i class="fas fa-key absolute left-3 top-3 text-white/30 text-xs"></i>
+                    <input type="password" id="gemini-key-input" placeholder="Tempel API Key..." 
+                        class="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 pl-9 pr-3 text-sm text-white focus:border-blue-500 outline-none">
+                </div>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 mt-2 ml-1 transition">
+                    Dapatkan Key Gratis <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button onclick="toggleSettings()" class="px-4 py-2 text-xs text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition">Batal</button>
+                <button onclick="saveSettings()" class="px-4 py-2 text-xs bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-lg hover:shadow-lg transition border border-white/10">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI HAPUS (NEW) -->
+    <div id="delete-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-0 invisible">
+        <div class="bg-[#1e1b4b] border border-white/10 rounded-2xl w-full max-w-xs p-6 shadow-2xl transform scale-95 transition-transform duration-300" id="delete-modal-content">
+            <div class="flex flex-col items-center text-center">
+                <div class="w-12 h-12 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mb-4">
+                    <i class="fas fa-trash-alt text-xl"></i>
+                </div>
+                <h2 class="text-lg font-bold text-white mb-1">Hapus Semua Chat?</h2>
+                <p class="text-xs text-blue-200/60 mb-6">Tindakan ini tidak dapat dibatalkan. Riwayat chat akan hilang dari browser ini.</p>
+                
+                <div class="flex gap-3 w-full">
+                    <button onclick="closeDeleteModal()" class="flex-1 px-4 py-2 text-xs text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition">Batal</button>
+                    <button onclick="confirmClearChat()" class="flex-1 px-4 py-2 text-xs bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:shadow-lg hover:from-red-500 hover:to-red-400 transition border border-white/10">Ya, Hapus</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA BAHASA & BENDERA ---
+        const languages = [
+            { code: 'id-ID', name: 'Indonesia', flag: 'id' },
+            { code: 'en-US', name: 'Inggris', flag: 'us' },
+            { code: 'ar-SA', name: 'Arab', flag: 'sa' },
+            { code: 'ko-KR', name: 'Korea', flag: 'kr' },
+            { code: 'ja-JP', name: 'Jepang', flag: 'jp' },
+            { code: 'zh-CN', name: 'Mandarin', flag: 'cn' }
+        ];
+
+        // --- GLOBAL VARS ---
+        const chatContainer = document.getElementById('chat-container');
+        const btnRecord = document.getElementById('btn-record');
+        const iconRecord = document.getElementById('icon-record');
+        const textInput = document.getElementById('text-input');
+        const apiIndicator = document.getElementById('api-indicator');
+        
+        // Modals
+        const settingsModal = document.getElementById('settings-modal');
+        const settingsModalContent = document.getElementById('settings-modal-content');
+        const deleteModal = document.getElementById('delete-modal');
+        const deleteModalContent = document.getElementById('delete-modal-content');
+        
+        let recognition;
+        let isRecording = false;
+        let finalTranscript = '';
+        let availableVoices = [];
+        let onlineAudio = new Audio();
+        let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
+
+        // --- INIT ---
+        window.onload = function() {
+            initCustomDropdowns();
+            loadChatHistory();
+            setupSpeechRecognition();
+            populateVoices();
+            updateApiStatus();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = populateVoices;
+            }
+            
+            // Close popups on outside click
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.custom-select')) {
+                    document.querySelectorAll('.select-items').forEach(el => el.classList.remove('show'));
+                }
+            });
+        };
+
+        // --- DELETE MODAL LOGIC (FIXED) ---
+        function askClearChat() {
+            deleteModal.classList.remove('invisible', 'opacity-0');
+            deleteModalContent.classList.remove('scale-95');
+            deleteModalContent.classList.add('scale-100');
+        }
+
+        function closeDeleteModal() {
+            deleteModal.classList.add('invisible', 'opacity-0');
+            deleteModalContent.classList.add('scale-95');
+            deleteModalContent.classList.remove('scale-100');
+        }
+
+        function confirmClearChat() {
+            localStorage.removeItem('chatHistory');
+            chatContainer.innerHTML = '<div class="text-center mt-4"><div class="inline-block glass rounded-full px-4 py-1.5"><p class="text-[10px] text-white/50 flex items-center gap-1"><i class="fas fa-shield-alt"></i> Privasi terjaga & tersimpan lokal</p></div></div>';
+            closeDeleteModal();
+            // Optional: Feedback getaran jika di HP
+            if(navigator.vibrate) navigator.vibrate(50);
+        }
+
+        // --- CUSTOM DROPDOWN LOGIC ---
+        function initCustomDropdowns() {
+            renderDropdown('source-list', 'sourceLang', 'source-select');
+            renderDropdown('target-list', 'targetLang', 'target-select');
+        }
+
+        function renderDropdown(listId, inputId, wrapperId) {
+            const listContainer = document.getElementById(listId);
+            listContainer.innerHTML = '';
+            
+            languages.forEach(lang => {
+                const item = document.createElement('div');
+                item.className = 'select-item';
+                item.innerHTML = `
+                    <img src="https://flagcdn.com/w40/${lang.flag}.png" alt="${lang.flag}">
+                    <span>${lang.name}</span>
+                `;
+                item.onclick = () => selectLanguage(lang.code, lang.name, lang.flag, inputId, wrapperId);
+                listContainer.appendChild(item);
+            });
+        }
+
+        function toggleDropdown(listId) {
+            // Tutup dropdown lain dulu
+            document.querySelectorAll('.select-items').forEach(el => {
+                if(el.id !== listId) el.classList.remove('show');
+            });
+            document.getElementById(listId).classList.toggle('show');
+        }
+
+        function selectLanguage(code, name, flag, inputId, wrapperId) {
+            document.getElementById(inputId).value = code;
+            
+            const wrapper = document.getElementById(wrapperId);
+            const selectedView = wrapper.querySelector('.select-selected');
+            selectedView.innerHTML = `
+                <img src="https://flagcdn.com/w40/${flag}.png" alt="${flag}">
+                <span>${name}</span>
+                <i class="fas fa-chevron-down text-[10px] ml-1 opacity-50"></i>
+            `;
+            
+            wrapper.querySelector('.select-items').classList.remove('show');
+        }
+
+        function swapLanguages() {
+            const srcInput = document.getElementById('sourceLang');
+            const tgtInput = document.getElementById('targetLang');
+            const srcVal = srcInput.value;
+            const tgtVal = tgtInput.value;
+
+            const srcLang = languages.find(l => l.code === srcVal);
+            const tgtLang = languages.find(l => l.code === tgtVal);
+
+            selectLanguage(tgtLang.code, tgtLang.name, tgtLang.flag, 'sourceLang', 'source-select');
+            selectLanguage(srcLang.code, srcLang.name, srcLang.flag, 'targetLang', 'target-select');
+        }
+
+        // --- SETTINGS UI LOGIC ---
+        function toggleSettings() {
+            const input = document.getElementById('gemini-key-input');
+            if (settingsModal.classList.contains('invisible')) {
+                settingsModal.classList.remove('invisible', 'opacity-0');
+                settingsModalContent.classList.remove('scale-95');
+                settingsModalContent.classList.add('scale-100');
+                input.value = geminiApiKey;
+            } else {
+                settingsModal.classList.add('invisible', 'opacity-0');
+                settingsModalContent.classList.add('scale-95');
+                settingsModalContent.classList.remove('scale-100');
+            }
+        }
+
+        function saveSettings() {
+            const input = document.getElementById('gemini-key-input');
+            geminiApiKey = input.value.trim();
+            localStorage.setItem('geminiApiKey', geminiApiKey);
+            toggleSettings();
+            updateApiStatus();
+        }
+
+        function updateApiStatus() {
+            apiIndicator.innerHTML = geminiApiKey 
+                ? '<span class="text-yellow-300"><i class="fas fa-bolt"></i> Gemini AI Pro</span>' 
+                : '<span class="text-white/50">Lingva (Gratis)</span>';
+        }
+
+        // --- SPEECH & TTS ---
+        function populateVoices() { availableVoices = window.speechSynthesis.getVoices(); }
+
+        function setupSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    btnRecord.classList.add('recording-active');
+                    iconRecord.classList.remove('fa-microphone');
+                    iconRecord.classList.add('fa-stop');
+                    textInput.placeholder = "Mendengarkan...";
+                    finalTranscript = '';
+                };
+                
+                recognition.onend = function() { if (!isRecording) resetUIState(); };
+
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+                        else interimTranscript += event.results[i][0].transcript;
+                    }
+                    textInput.value = finalTranscript + interimTranscript;
+                };
+
+                recognition.onerror = (event) => { console.error(event.error); stopRecording(); };
+            } else {
+                alert("Browser ini tidak mendukung Voice Recognition. Gunakan Chrome.");
+            }
+        }
+
+        function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
+        
+        function startRecording() {
+            recognition.lang = document.getElementById('sourceLang').value;
+            recognition.start();
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            recognition.stop();
+            setTimeout(() => { if (textInput.value.trim()) processText(); }, 500);
+        }
+
+        function resetUIState() {
+            btnRecord.classList.remove('recording-active');
+            iconRecord.classList.remove('fa-stop');
+            iconRecord.classList.add('fa-microphone');
+            textInput.placeholder = "Ketik pesan...";
+        }
+
+        // --- CORE TRANSLATION LOGIC ---
+        async function processText() {
+            const text = textInput.value.trim();
+            if (!text) return;
+
+            const sourceLang = document.getElementById('sourceLang').value;
+            const targetLang = document.getElementById('targetLang').value;
+            
+            const sourceLangObj = languages.find(l => l.code === sourceLang);
+            const targetLangObj = languages.find(l => l.code === targetLang);
+            const sourceLabel = sourceLangObj ? sourceLangObj.name : 'Unknown';
+            const targetLabel = targetLangObj ? targetLangObj.name : 'Unknown';
+
+            textInput.value = '';
+            addChatBubble(text, sourceLang, 'user');
+            
+            const loadingId = addLoadingBubble(targetLang);
+
+            try {
+                let translation = '';
+                if (geminiApiKey) {
+                    translation = await translateWithGemini(text, sourceLabel, targetLabel);
+                } else {
+                    const srcCode = sourceLang.split('-')[0];
+                    const tgtCode = targetLang.split('-')[0];
+                    translation = await translateHybrid(text, srcCode, tgtCode);
+                }
+                
+                removeChatBubble(loadingId);
+                addChatBubble(translation, targetLang, 'bot');
+                saveToHistory(text, sourceLang, translation, targetLang);
+            } catch (error) {
+                removeChatBubble(loadingId);
+                console.error(error);
+                addChatBubble("Gagal menerjemahkan.", 'id-ID', 'error');
+            }
+        }
+
+        // API Calls
+        async function translateWithGemini(text, from, to) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+            const prompt = `Translate this text from ${from} to ${to}. Output ONLY the translation. Text: "${text}"`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+            const data = await response.json();
+            if (data.error) throw new Error(data.error.message);
+            return data.candidates[0].content.parts[0].text.trim();
+        }
+
+        async function translateHybrid(text, from, to) {
+            try {
+                const url = `https://lingva.ml/api/v1/${from}/${to}/${encodeURIComponent(text)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.translation) return data.translation;
+                throw new Error("Lingva Fail");
+            } catch (e) {
+                const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if(data.responseStatus === 200) return data.responseData.translatedText;
+                else throw new Error("All APIs Failed");
+            }
+        }
+
+        // --- UI BUBBLE RENDERER ---
+        function addChatBubble(text, langCode, type) {
+            const isArabic = langCode.startsWith('ar');
+            const align = isArabic ? 'items-end' : 'items-start';
+            
+            let bubbleStyle = '';
+            let textStyle = 'text-white';
+            
+            if (type === 'user') {
+                bubbleStyle = 'bg-gradient-to-r from-violet-600 to-blue-600 border border-white/10 shadow-lg shadow-blue-900/20';
+            } else if (type === 'error') {
+                bubbleStyle = 'bg-red-500/20 border border-red-500/50 text-red-100';
+            } else {
+                bubbleStyle = 'bg-white/10 border border-white/10 backdrop-blur-md shadow-lg';
+                textStyle = 'text-blue-50';
+            }
+
+            const textAlign = isArabic ? 'text-right' : 'text-left';
+            const dir = isArabic ? 'rtl' : 'ltr';
+            
+            let fontClass = '';
+            if (isArabic) fontClass = 'font-arabic';
+            else if (langCode.startsWith('ja')) fontClass = 'font-jp';
+            else if (langCode.startsWith('ko')) fontClass = 'font-kr';
+            else if (langCode.startsWith('zh')) fontClass = 'font-sc';
+
+            const id = 'msg-' + Date.now();
+            let playButtonHTML = '';
+            if (type === 'bot') {
+                const safeText = text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                playButtonHTML = `
+                    <button onclick="speakText('${safeText}', '${langCode}')" class="mt-2 text-blue-300 hover:text-white text-xs flex items-center gap-2 px-2 py-1 rounded-full hover:bg-white/10 transition w-fit ml-auto">
+                        <span class="text-[10px]">Putar Suara</span> <i class="fas fa-volume-up"></i>
+                    </button>
+                `;
+            }
+
+            const html = `
+                <div id="${id}" class="flex flex-col ${align} w-full animate-fade-in">
+                    <div class="${bubbleStyle} ${textAlign} ${dir} ${fontClass} ${textStyle} px-4 py-3 rounded-2xl max-w-[85%] relative break-words text-sm md:text-base">
+                        ${text}
+                        ${playButtonHTML}
+                    </div>
+                </div>
+            `;
+            chatContainer.insertAdjacentHTML('beforeend', html);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return id;
+        }
+
+        function addLoadingBubble(langCode) {
+            const isArabic = langCode.startsWith('ar');
+            const align = isArabic ? 'items-end' : 'items-start';
+            const id = 'loading-' + Date.now();
+            const html = `
+                <div id="${id}" class="flex flex-col ${align} w-full animate-fade-in">
+                    <div class="bg-white/5 border border-white/5 backdrop-blur-sm px-4 py-3 rounded-2xl text-blue-200 text-xs flex items-center gap-2">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                        <span>Menerjemahkan...</span>
+                    </div>
+                </div>`;
+            chatContainer.insertAdjacentHTML('beforeend', html);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return id;
+        }
+
+        function removeChatBubble(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        // --- TTS (Same Logic) ---
+        function speakText(text, langCode) {
+            if(!onlineAudio.paused) onlineAudio.pause();
+            if('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+            if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
+            const targetLangShort = langCode.split('-')[0]; 
+            
+            const langVoices = availableVoices.filter(voice => 
+                voice.lang === langCode || voice.lang.replace('_', '-').startsWith(targetLangShort)
+            );
+
+            let selectedVoice = langVoices.find(voice => 
+                voice.name.includes("Google") || voice.name.includes("Female") || voice.name.includes("Woman") ||
+                voice.name.includes("Zira") || voice.name.includes("Samantha")
+            );
+
+            if (!selectedVoice && langVoices.length > 0) selectedVoice = langVoices[0];
+
+            if (selectedVoice) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = langCode;
+                utterance.voice = selectedVoice;
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                let targetCode = targetLangShort === 'zh' ? 'zh-CN' : targetLangShort;
+                const url = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`;
+                onlineAudio.src = url;
+                onlineAudio.play();
+            }
+        }
+
+        function saveToHistory(original, srcLang, translated, tgtLang) {
+            let history = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            history.push({ original, srcLang, translated, tgtLang });
+            localStorage.setItem('chatHistory', JSON.stringify(history));
+        }
+        function loadChatHistory() {
+            let history = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            history.forEach(item => {
+                addChatBubble(item.original, item.srcLang, 'user');
+                addChatBubble(item.translated, item.tgtLang, 'bot');
+            });
+        }
+        // Legacy function replaced by modal
+        // function clearChat() { ... } 
+        function handleEnter(e) { if(e.key === 'Enter') processText(); }
+    </script>
+</body>
+</html>
