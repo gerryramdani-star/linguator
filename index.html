@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Voice Translator</title>
-    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/gerryramdani-star/linguator/refs/heads/main/asset/logo%20Linguator.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -131,21 +130,6 @@
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; opacity: 0; transform: translateY(10px); }
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
     </style>
-    <!-- Kode Meta Pixel Disini -->
-    <script>
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '1581308786361384');
-    fbq('track', 'PageView');
-    </script>
-    <noscript>...</noscript>
-    <!-- Akhir Kode Meta Pixel -->
 </head>
 <body class="h-screen flex items-center justify-center p-0 md:p-4 overflow-hidden">
 
@@ -526,6 +510,11 @@
             textInput.value = '';
             addChatBubble(text, sourceLang, 'user');
             
+            // Pixel Tracking Lead (Opsional)
+            if (typeof fbq === 'function') {
+                fbq('track', 'Translate', { language: targetLabel });
+            }
+
             const loadingId = addLoadingBubble(targetLang);
 
             try {
@@ -649,11 +638,12 @@
             if (el) el.remove();
         }
 
-        // --- TTS (Same Logic) ---
+        // --- TTS (PERBAIKAN FITUR SUARA) ---
         function speakText(text, langCode) {
             if(!onlineAudio.paused) onlineAudio.pause();
             if('speechSynthesis' in window) window.speechSynthesis.cancel();
 
+            // 1. Coba Cari Suara Native (Offline/Bawaan HP)
             if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
             const targetLangShort = langCode.split('-')[0]; 
             
@@ -669,17 +659,33 @@
             if (!selectedVoice && langVoices.length > 0) selectedVoice = langVoices[0];
 
             if (selectedVoice) {
+                // Gunakan Native (Lebih cepat, Offline, Aman)
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = langCode;
                 utterance.voice = selectedVoice;
                 utterance.rate = 0.9;
                 window.speechSynthesis.speak(utterance);
+                console.log("TTS Source: Native Device Voice");
             } else {
-                let targetCode = targetLangShort === 'zh' ? 'zh-CN' : targetLangShort;
-                const url = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`;
-                onlineAudio.src = url;
-                onlineAudio.play();
+                // Fallback: Online (Google TTS Hack) - DIPERBAIKI
+                console.log("TTS Source: Online Fallback");
+                playOnlineTTS(text, targetLangShort);
             }
+        }
+
+        function playOnlineTTS(text, langShort) {
+            let targetCode = langShort;
+            if (langShort === 'zh') targetCode = 'zh-CN';
+
+            // URL Baru yang lebih ramah hosting (client=tw-ob)
+            const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${targetCode}&client=tw-ob`;
+            
+            onlineAudio.src = url;
+            onlineAudio.play().catch(e => {
+                console.error("Online Audio Failed:", e);
+                // Jika online gagal juga, coba paksa native voice apa saja (daripada bisu)
+                alert("Maaf, suara tidak dapat dimuat. Pastikan koneksi internet lancar atau install paket bahasa di pengaturan HP/Laptop Anda.");
+            });
         }
 
         function saveToHistory(original, srcLang, translated, tgtLang) {
@@ -699,7 +705,4 @@
         function handleEnter(e) { if(e.key === 'Enter') processText(); }
     </script>
 </body>
-
 </html>
-
-
