@@ -638,7 +638,7 @@
             if (el) el.remove();
         }
 
-        // --- TTS (PERBAIKAN FITUR SUARA) ---
+        // --- TTS (PERBAIKAN FITUR SUARA - MULTI SERVER) ---
         function speakText(text, langCode) {
             if(!onlineAudio.paused) onlineAudio.pause();
             if('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -651,24 +651,24 @@
                 voice.lang === langCode || voice.lang.replace('_', '-').startsWith(targetLangShort)
             );
 
+            // Prioritas: Google/Female/Local
             let selectedVoice = langVoices.find(voice => 
-                voice.name.includes("Google") || voice.name.includes("Female") || voice.name.includes("Woman") ||
-                voice.name.includes("Zira") || voice.name.includes("Samantha")
+                voice.name.includes("Google") || voice.name.includes("Female") || voice.name.includes("Woman")
             );
 
             if (!selectedVoice && langVoices.length > 0) selectedVoice = langVoices[0];
 
             if (selectedVoice) {
-                // Gunakan Native (Lebih cepat, Offline, Aman)
+                // Gunakan Native jika ada suara yang COCOK
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = langCode;
                 utterance.voice = selectedVoice;
                 utterance.rate = 0.9;
                 window.speechSynthesis.speak(utterance);
-                console.log("TTS Source: Native Device Voice");
+                console.log("TTS Source: Native Device Voice (" + selectedVoice.name + ")");
             } else {
-                // Fallback: Online (Google TTS Hack) - DIPERBAIKI
-                console.log("TTS Source: Online Fallback");
+                // Fallback: Online (Coba beberapa server)
+                console.log("TTS Source: Online Fallback (Native not found for " + langCode + ")");
                 playOnlineTTS(text, targetLangShort);
             }
         }
@@ -677,15 +677,41 @@
             let targetCode = langShort;
             if (langShort === 'zh') targetCode = 'zh-CN';
 
-            // URL Baru yang lebih ramah hosting (client=tw-ob)
-            const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${targetCode}&client=tw-ob`;
-            
-            onlineAudio.src = url;
-            onlineAudio.play().catch(e => {
-                console.error("Online Audio Failed:", e);
-                // Jika online gagal juga, coba paksa native voice apa saja (daripada bisu)
-                alert("Maaf, suara tidak dapat dimuat. Pastikan koneksi internet lancar atau install paket bahasa di pengaturan HP/Laptop Anda.");
-            });
+            // Daftar Server Mirror untuk antisipasi blokir
+            const audioUrls = [
+                `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${targetCode}&client=tw-ob`,
+                `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${targetCode}&client=gtx`,
+                `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=${targetCode}`
+            ];
+
+            let attempt = 0;
+
+            function tryNext() {
+                if (attempt >= audioUrls.length) {
+                    alert("Gagal memuat suara dari semua server. Periksa koneksi internet Anda.");
+                    return;
+                }
+
+                const url = audioUrls[attempt];
+                console.log("Trying TTS URL:", url);
+                
+                onlineAudio.src = url;
+                
+                // Tambahkan handler error untuk mencoba url berikutnya
+                onlineAudio.onerror = (e) => {
+                     console.warn("Server " + attempt + " failed, trying next...");
+                     attempt++;
+                     tryNext();
+                };
+
+                onlineAudio.play().catch(e => {
+                    console.warn("Play failed (Autoplay/Format), trying next...");
+                    attempt++;
+                    tryNext();
+                });
+            }
+
+            tryNext();
         }
 
         function saveToHistory(original, srcLang, translated, tgtLang) {
